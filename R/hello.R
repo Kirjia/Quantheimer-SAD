@@ -7,6 +7,9 @@ library(corrplot)
 library(fastDummies)
 library(hrbrthemes)
 library(heatmaply)
+library(factoextra)
+library(skimr)
+library(psych)
 
 
 dt <- read_tsv(file = 'C:/Users/enzo2/OneDrive/Desktop/openneuro/participants.tsv', na = c("", "NA", "n/a", "N/A"))
@@ -14,8 +17,20 @@ dt <- read_tsv(file = 'C:/Users/enzo2/OneDrive/Desktop/openneuro/participants.ts
 df<-data.frame(dt)
 varianza <- data.frame()
 
+head(df)
+
+# Ti dice quanti NA ci sono in tutto il dataset
+sum(is.na(df))
+
+# Ti dice quali colonne hanno NA
+colSums(is.na(df))
+
+df_stats <- skim(df)
+df_py_stats <- describe(df)
+
 df <- df %>%
   mutate(across(9:87 & where(is.character), readr::parse_number))
+df$APOE_rs429358[122] = "T/T"
 
 
 ggplot(data = df, aes(x = APOE_haplotype, fill = factor(APOE_haplotype))) + geom_bar() + theme_minimal() +
@@ -105,6 +120,26 @@ df <- df %>%
     )
   )
 
+df<- df%>%
+  mutate(
+    APOE_rs429358 = case_match(APOE_rs429358,
+                               c("T/T") ~ 1,
+                               c("T/C") ~ 2,
+                               c("C/T") ~ 3,
+                               c("C/C") ~ 4,
+                               .default = NA)
+  )
+
+df<- df%>%
+  mutate(
+    APOE_rs7412 = case_match(APOE_rs7412,
+                               c("T/T") ~ 1,
+                               c("T/C") ~ 2,
+                               c("C/T") ~ 3,
+                               c("C/C") ~ 4,
+                               .default = NA)
+  )
+
 
 
 df$PICALM_rs3851179 <- factor(df$PICALM_rs3851179)
@@ -148,3 +183,80 @@ heatmaply_cor(
   label_names = c("x", "y", "Correlation")
 )
 
+
+df_pca <- df %>%
+  select(leukocytes : HSV_r)
+df_pca <- na.omit(df_pca)
+pca_res <- prcomp(df_pca, scale. = TRUE)
+
+fviz_eig(
+  pca_res,
+  addlabels = TRUE,
+  ncp = 15,
+  ylim = c(0, 80),
+  main = "Scree plot con percentuali"
+)
+
+fviz_contrib(pca_res,
+             choice = "var",
+             axes = 1:4,         # Somma l'importanza su PC1 & PC2 & PC3 & PC4;
+             top = 28)
+
+
+#Estrazione degli autovalori e delle percentuali
+eig_val <- get_eigenvalue(pca_res)
+
+#Creazione di un dataframe leggibile
+tabella_varianza <- data.frame(
+  Dimensione = 1:nrow(eig_val),
+  Varianza_Percentuale = round(eig_val$variance.percent, 2),
+  Varianza_Cumulata = round(eig_val$cumulative.variance.percent, 2)
+)
+
+# Trova il numero minimo di dimensioni per arrivare al 70%
+dim_70 <- which(tabella_varianza$Varianza_Cumulata >= 70)[1]
+
+# Trova il numero minimo di dimensioni per arrivare all'80%
+dim_80 <- which(tabella_varianza$Varianza_Cumulata >= 80)[1]
+
+cat("Per spiegare almeno il 70% dell'informazione servono:", dim_70, "dimensioni\n")
+cat("Per spiegare almeno il 80% dell'informazione servono:", dim_80, "dimensioni\n")
+
+
+# Guarda quali variabili pesano di più sulle prime 7 dimensioni
+res_var <- get_pca_var(pca_res)
+contributi <- res_var$contrib[, 1:7]
+
+
+sort(contributi[, 1], decreasing = TRUE)[1:5]   # top 5 variabili della PC1:
+sort(contributi[, 2], decreasing = TRUE)[1:5]   # top 5 variabili della PC2:
+sort(contributi[, 3], decreasing = TRUE)[1:5]   # top 5 variabili della PC3:
+sort(contributi[, 4], decreasing = TRUE)[1:5]   # top 5 variabili della PC4:
+sort(contributi[, 5], decreasing = TRUE)[1:5]   # top 5 variabili della PC5:
+sort(contributi[, 6], decreasing = TRUE)[1:5]   # top 5 variabili della PC6:
+sort(contributi[, 7], decreasing = TRUE)[1:5]   # top 5 variabili della PC7:
+
+analysis_name <- df %>% select(leukocytes:HSV_r) %>% colnames()
+dataframe_pca <- df %>% select(-all_of(analysis_name))
+dataframe_pca <- dataframe_pca[rownames(pca_res$x), ]
+
+# Otteniamo le 7 dimensioni scelte dallo Scree Plot
+nuove_dimensioni <- as.data.frame(pca_res$x[, 1:7])
+colnames(nuove_dimensioni) <- paste0("Dim_", 1:7)
+
+# Aggiungiamo le nuovi dimensioni ottenute
+dataframe_pca <- cbind(dataframe_pca, nuove_dimensioni)
+
+dataframe_pca %>% ggplot( aes(x=Dim_1)) +
+  geom_density(fill="#696089", color="#000000", alpha=0.8) +
+  ggtitle("Dim 1") + theme_ipsum()
+
+
+ggplot(df, aes(APOE_risk_score, CVLT_13)) +
+  geom_point() +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.line = element_line(linewidth = 0.75),
+    axis.line.x.bottom = element_line(colour = "blue")
+  )
