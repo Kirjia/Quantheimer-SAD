@@ -1,5 +1,5 @@
 if (!require("pacman")) install.packages("pacman")
-pacman::p_load(ggplot2, ggthemes, dplyr, tidyr, readr, janitor, corrplot, fastdummies, heatmaply, factoextra, skimr, psych)
+pacman::p_load(ggplot2, ggthemes, dplyr, tidyr, readr, janitor, corrplot, fastDummies, heatmaply, factoextra, skimr, psych)
 
 
 
@@ -23,6 +23,8 @@ df <- df %>%
   mutate(across(9:87 & where(is.character), readr::parse_number))
 df$APOE_rs429358[122] = "T/T"
 
+df <- df %>% slice(-108)
+
 
 ggplot(data = df, aes(x = APOE_haplotype, fill = factor(APOE_haplotype))) + geom_bar() + theme_minimal() +
   labs(
@@ -45,9 +47,19 @@ ggplot(data = df, aes(x = APOE_rs7412, fill = factor(APOE_rs7412))) + geom_bar()
     fill = "Genes"
   )
 
-ggplot(data = df, aes(x= diabetes, fill = factor(diabetes))) + geom_bar() + theme_minimal()
+ggplot(data = df, aes(x= diabetes, fill = factor(diabetes))) + geom_bar() + theme_minimal() +
+  labs(
+    title = "distribuzione del diabete",
+    ylab = "Count",
+    fill= "diabetes"
+  )
 
-ggplot(data = df, aes(x= hypertension, fill = factor(hypertension))) + geom_bar() + theme_minimal()
+ggplot(data = df, aes(x= hypertension, fill = factor(hypertension))) + geom_bar() + theme_minimal() +
+  labs(
+    title = "distribuzione hypertension",
+    ylab = "Count",
+    fill= "hypertension"
+  )
 
 ggplot(data = df, aes(y = BDI)) + geom_boxplot() + labs(
   title = "BDI boxplot"
@@ -142,12 +154,6 @@ df <- dummy_cols(df, select_columns = ("PICALM_rs3851179"), remove_first_dummy =
 
 
 
-boxplot(na.omit(df$CVLT_12), xlab="CVLT total hits", col = "green")
-df %>% ggplot(aes(y = CVLT_12))+geom_boxplot( outlier.color = "black", outlier.shape = 16, outlier.size = 2, fill="red", ylab= "count")
-boxplot(df$education)
-
-df %>% ggplot(aes(y = RPM))+geom_boxplot( outlier.color = "black", outlier.shape = 16, outlier.size = 2, fill="red")
-
 
 
 tmp <- df[9:90]
@@ -178,6 +184,31 @@ heatmaply_cor(
   label_names = c("x", "y", "Correlation")
 )
 
+#Analisi bivariata
+
+#NEO_NEU e BDI
+df %>% ggplot(aes(x=NEO_NEU, y=BDI)) + geom_point() +
+      geom_smooth(method = lm, color="red", fill = "#ac31f6", se=TRUE) +
+      theme_tufte()
+
+df %>% ggplot(aes(x=NEO_NEU, y=BDI)) + geom_density2d_filled() +
+  theme_tufte()
+
+#NEO_NEU e SES
+df %>% ggplot(aes(x=NEO_NEU, y=SES)) + geom_point() +
+  geom_smooth(method = lm, color="red", fill = "#ac31f6", se=TRUE) +
+  theme_tufte()
+
+df %>% ggplot(aes(x=NEO_NEU, y=SES)) + geom_density2d_filled() +
+  theme_tufte()
+
+#MINI COPE 7 e 8
+df %>% ggplot(aes(x=MINI.COPE_7, y=MINI.COPE_8)) + geom_point() +
+  geom_smooth(method = lm, color="red", fill = "#ac31f6", se=TRUE) +
+  theme_tufte()
+
+df %>% ggplot(aes(x=MINI.COPE_7, y=MINI.COPE_8)) + geom_density2d_filled() +
+  theme_tufte()
 
 df_pca <- df %>%
   select(leukocytes : HSV_r)
