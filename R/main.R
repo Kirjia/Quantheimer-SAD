@@ -72,10 +72,46 @@ df <- df %>%
 #imputazione MINI.cope
 colonne_MINI <- c("MINI.COPE_1", "MINI.COPE_2", "MINI.COPE_3", "MINI.COPE_4", "MINI.COPE_5", "MINI.COPE_6","MINI.COPE_7", "MINI.COPE_8", "MINI.COPE_9","MINI.COPE_10", "MINI.COPE_11", "MINI.COPE_12","MINI.COPE_13", "MINI.COPE_14")
 
+
+
 df <- df %>%
   mutate(across(all_of(colonne_MINI),
                 ~ ifelse(is.na(.), round(median(., na.rm = TRUE)), .)))
 
+
+
+df <- df %>%
+  mutate(
+    # 1. PROBLEM-FOCUSED / ACTIVE (Coping Adattivo)
+    # Agire, pianificare e cercare consigli pratici
+    Cope_Active = rowSums(select(.,
+                                 MINI.COPE_1,  # Active Coping
+                                 MINI.COPE_2,  # Planning
+                                 MINI.COPE_8   # Instrumental Support
+    ), na.rm = TRUE),
+
+    # 2. EMOTION-FOCUSED (Coping Emotivo/Neutro)
+    # Gestire le emozioni, cercare conforto, ridere, pregare
+    Cope_Emotional = rowSums(select(.,
+                                    MINI.COPE_3,  # Positive Reframing
+                                    MINI.COPE_4,  # Acceptance
+                                    MINI.COPE_5,  # Humor
+                                    MINI.COPE_6,  # Religion
+                                    MINI.COPE_7,  # Emotional Support
+                                    MINI.COPE_11  # Venting
+    ), na.rm = TRUE),
+
+    # 3. AVOIDANT / DYSFUNCTIONAL (Coping Disfunzionale)
+    # Evitare il problema, bere, negare, incolparsi
+    # Questo gruppo correla spesso con declino cognitivo e depressione
+    Cope_Avoidant = rowSums(select(.,
+                                   MINI.COPE_9,  # Self-Distraction
+                                   MINI.COPE_10, # Denial
+                                   MINI.COPE_12, # Substance Use
+                                   MINI.COPE_13, # Behavioral Disengagement
+                                   MINI.COPE_14  # Self-Blame
+    ), na.rm = TRUE)
+  )
 
 # --- GRAFICO 1: APOE Haplotype ---
 ggplot(data = df, aes(x = APOE_haplotype, fill = factor(APOE_haplotype))) +
@@ -175,13 +211,32 @@ df %>% ggplot( aes(x=learning_deficits)) +
   ggtitle("Distr. indice defict apprendimento") + theme_minimal()
 df %>% ggplot( aes(x=smoking_status)) +
   geom_density(fill="#696089", color="#000000", alpha=0.9) +
-  ggtitle("Distribuzione fumatori)") + theme_minimal()
+  ggtitle("Distribuzione fumatori") + theme_minimal()
+df %>% ggplot( aes(x=drugs)) +
+  geom_density(fill="#696089", color="#000000", alpha=0.9) +
+  ggtitle("Distribuzione farmaci assunti") + theme_minimal()
+df %>% ggplot( aes(x=ibuprofen_intake)) +
+  geom_density(fill="#696089", color="#000000", alpha=0.9) +
+  ggtitle("Distribuzione ibuprofene") + theme_minimal()
+df %>% ggplot( aes(x=coffee_status)) +
+  geom_density(fill="#696089", color="#000000", alpha=0.9) +
+  ggtitle("Distribuzione assunzione caffe") + theme_minimal()
+df %>% ggplot( aes(x=thyroid_diseases)) +
+  geom_density(fill="#696089", color="#000000", alpha=0.9) +
+  ggtitle("Distribuzione malattie tiroidee") + theme_minimal()
+df %>% ggplot( aes(x=other_diseases)) +
+  geom_density(fill="#696089", color="#000000", alpha=0.9) +
+  ggtitle("Distribuzione altre malattie presenti)") + theme_minimal()
+df %>% ggplot( aes(x=Cope_Active)) +
+  geom_density(fill="#696089", color="#000000", alpha=0.9) +
+  ggtitle("Distribuzione code active") + theme_minimal()
+df %>% ggplot( aes(x=Cope_Emotional)) +
+  geom_density(fill="#696089", color="#000000", alpha=0.9) +
+  ggtitle("Distribuzione cope emotional") + theme_minimal()
+df %>% ggplot( aes(x=Cope_Avoidant)) +
+  geom_density(fill="#696089", color="#000000", alpha=0.9) +
+  ggtitle("Distribuzione cope avoidant") + theme_minimal()
 
-
-
-df %>% ggplot( aes(x=BDI, y=RPM)) +
-  geom_point(size=6, color="#69b3a2") +
-  ggtitle("Transparency")
 
 # Creazione del dataset lungo per il grafico
 df_long <- pivot_longer(df,
@@ -256,10 +311,16 @@ df <- dummy_cols(df, select_columns = ("PICALM_rs3851179"), remove_first_dummy =
 
 
 
+# Verifica rapida
+print("Nuove variabili create:")
+head(select(df, Cope_Active, Cope_Emotional, Cope_Avoidant))
+
+df <- select(df, -"MINI.COPE_1":-"MINI.COPE_14")
+
 
 #Grafico della correlazione
-tmp <- df[9:90]
-df_clean <- tmp[, apply(tmp, 2, var, na.rm = TRUE) != 0]
+df_clean <- select(df, "APOE_rs429358", "APOE_rs7412", "age":"Cope_Avoidant")
+df_clean <- df_clean[, apply(df_clean, 2, var, na.rm = TRUE) != 0]
 cor.test.p <- function(x){
   FUN <- function(x, y) cor.test(x, y)[["p.value"]]
   z <- outer(
@@ -273,7 +334,7 @@ cor.test.p <- function(x){
 p <- cor.test.p(df_clean)
 
 heatmaply_cor(
-  cor(df_clean),            # Questo dice a R di scriverli
+  cor(df_clean, use = "pairwise.complete.obs"),            # Questo dice a R di scriverli
   # Opzionale: Estetica del testo
   node_type = "scatter",
   hclust_method= "ward.D2",
@@ -301,15 +362,8 @@ df %>% ggplot(aes(x=NEO_NEU, y=SES)) + geom_point() +
 df %>% ggplot(aes(x=NEO_NEU, y=SES)) + geom_density2d_filled() +
   theme_tufte()
 
-#MINI COPE 7 e 8
-df %>% ggplot(aes(x=MINI.COPE_7, y=MINI.COPE_8)) + geom_point() +
-  geom_smooth(method = lm, color="red", fill = "#ac31f6", se=TRUE) +
-  theme_tufte()
 
-df %>% ggplot(aes(x=MINI.COPE_7, y=MINI.COPE_8)) + geom_density2d_filled() +
-  theme_tufte()
-
-ggplot(df, aes(APOE_risk_score, CVLT_13)) +
+ggplot(df, aes(APOE_risk_score, CVLT_9)) +
   geom_point() +
   theme_minimal() +
   theme(
@@ -318,12 +372,19 @@ ggplot(df, aes(APOE_risk_score, CVLT_13)) +
     axis.line.x.bottom = element_line(colour = "blue")
   )
 
-############################################## PCA--------------CVLT----------------PCA #############################################
-############################################## PCA--------------CVLT----------------PCA #############################################
-############################################## PCA--------------CVLT----------------PCA #############################################
+ggplot(df, aes(APOE_risk_score, CVLT_7)) +
+  geom_point() +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    axis.line = element_line(linewidth = 0.75),
+    axis.line.x.bottom = element_line(colour = "blue")
+  )
+
+
 ############################################## PCA--------------CVLT----------------PCA #############################################
 
-#Visulizzazione varizanza CVLT tranne la 9 perché riguarda la malattia e 12 e 13 in pratica costanti quindi verranno rimosse
+#Visulizzazione varizanza CVLT tranne 9 per tenere il suo valore separato, 12 e 13 in pratica costanti quindi verranno rimosse
 CVLT_pca <- select(df, 'CVLT_1':'CVLT_11') %>% select(-'CVLT_9') %>%
   prcomp(scale. = TRUE)
 fviz_eig(CVLT_pca, addlabels = TRUE, ncp = 13, ylim=c(0, 80), main="CVLT Var distr.")
@@ -349,12 +410,12 @@ colnames(nuove_dimensioni) <- paste0("N-CVLT_", 1:4)
 # Aggiungiamo le nuovi dimensioni ottenute
 df <- cbind(df, nuove_dimensioni)
 
-df <- select(df, -c("CVLT_10", "CVLT_11", "CVLT_12", "CVLT_13", "learning_deficits", "diabetes"))
+df <- select(df, -c("CVLT_10", "CVLT_11", "CVLT_12", "CVLT_13", "learning_deficits", "diabetes", "APOE_rs429358", "APOE_rs7412"))
 df <- select(df, -"CVLT_1":-"CVLT_8")
 
 
 
-############################################## PCA--------------CVLT----------------PCA #############################################
+############################################## PCA--------------END CVLT----------------PCA #############################################
 
 ############################################## PCA--------------Blood Test----------PCA #############################################
 df_pca <- df %>%
@@ -441,13 +502,213 @@ dataframe_pca %>% ggplot( aes(x=Dim_1)) +
 
 
 
-df <- select(df, -c('APOE_haplotype', 'PICALM_rs3851179', 'participant_id', "second_phase", "session_order", "allergies", "hypertension", "education"))
-df<- select(df, -'leukocytes':-'HSV_r')
+
 
 ############################################## PCA--------------Blood Test----------PCA #############################################
+df <- select(df, -c('APOE_haplotype', 'PICALM_rs3851179', "second_phase", "session_order", "allergies", "hypertension", "education", "other_diseases", "thyroid_diseases", "smoking_status", "drugs"))
+df<- select(df, -'leukocytes':-'HSV_r')
+dataframe_pca <- select(dataframe_pca, -c('APOE_haplotype', 'PICALM_rs3851179', "second_phase", "session_order", "allergies", "hypertension", "education"))
 
-df_clust <- df
+ggplot() +
+  # Primo dataset
+  geom_density(data = df, aes(x = BMI, fill = "full samples"), alpha = 0.4) +
+  # Secondo dataset
+  geom_density(data = dataframe_pca, aes(x = BMI, fill = "blood samples"), alpha = 0.4) +
+  scale_fill_manual(name = "Legenda",
+                    values = c("full samples" = "blue", "blood samples" = "red")) +
 
+  theme_minimal() +
+  labs(title = "Confronto BMI", x = "Valore", y = "Densità")
+
+ggplot() +
+  # Primo dataset
+  geom_density(data = df, aes(x = APOE_risk_score, fill = "full samples"), alpha = 0.4) +
+  # Secondo dataset
+  geom_density(data = dataframe_pca, aes(x = APOE_risk_score, fill = "blood samples"), alpha = 0.4) +
+  scale_fill_manual(name = "Legenda",
+                    values = c("full samples" = "blue", "blood samples" = "red")) +
+
+  theme_minimal() +
+  labs(title = "Confronto AOPE risk score", x = "Valore", y = "Densità")
+
+ggplot() +
+  # Primo dataset
+  geom_density(data = df, aes(x = BDI, fill = "full samples"), alpha = 0.4) +
+  # Secondo dataset
+  geom_density(data = dataframe_pca, aes(x = BDI, fill = "blood samples"), alpha = 0.4) +
+  scale_fill_manual(name = "Legenda",
+                    values = c("full samples" = "blue", "blood samples" = "red")) +
+  theme_minimal() +
+  labs(title = "Confronto BDI", x = "Valore", y = "Densità")
+
+ggplot() +
+  # Primo dataset
+  geom_density(data = df, aes(x = SES, fill = "full samples"), alpha = 0.4) +
+  # Secondo dataset
+  geom_density(data = dataframe_pca, aes(x = SES, fill = "blood samples"), alpha = 0.4) +
+  scale_fill_manual(name = "Legenda",
+                    values = c("full samples" = "blue", "blood samples" = "red")) +
+  theme_minimal() +
+  labs(title = "Confronto SES", x = "Valore", y = "Densità")
+
+ggplot() +
+  # Primo dataset
+  geom_density(data = df, aes(x = RPM, fill = "full samples"), alpha = 0.4) +
+  # Secondo dataset
+  geom_density(data = dataframe_pca, aes(x = RPM, fill = "blood samples"), alpha = 0.4) +
+  scale_fill_manual(name = "Legenda",
+                    values = c("full samples" = "blue", "blood samples" = "red")) +
+  theme_minimal() +
+  labs(title = "Confronto RPM", x = "Valore", y = "Densità")
+
+ggplot() +
+  # Primo dataset
+  geom_density(data = df, aes(x = EHI, fill = "full samples"), alpha = 0.4) +
+  # Secondo dataset
+  geom_density(data = dataframe_pca, aes(x = EHI, fill = "blood samples"), alpha = 0.4) +
+  scale_fill_manual(name = "Legenda",
+                    values = c("full samples" = "blue", "blood samples" = "red")) +
+  theme_minimal() +
+  labs(title = "Confronto EHI", x = "Valore", y = "Densità")
+
+ggplot() +
+  # Primo dataset
+  geom_density(data = df, aes(x = NEO_NEU, fill = "full samples"), alpha = 0.4) +
+  # Secondo dataset
+  geom_density(data = dataframe_pca, aes(x = BDI, fill = "blood samples"), alpha = 0.4) +
+  scale_fill_manual(name = "Legenda",
+                    values = c("full samples" = "blue", "blood samples" = "red")) +
+  theme_minimal() +
+  labs(title = "Confronto NEO-NEU", x = "Valore", y = "Densità")
+
+ggplot() +
+  # Primo dataset
+  geom_density(data = df, aes(x = NEO_EXT, fill = "full samples"), alpha = 0.4) +
+  # Secondo dataset
+  geom_density(data = dataframe_pca, aes(x = BDI, fill = "blood samples"), alpha = 0.4) +
+  scale_fill_manual(name = "Legenda",
+                    values = c("full samples" = "blue", "blood samples" = "red")) +
+  theme_minimal() +
+  labs(title = "Confronto NEO-EXT", x = "Valore", y = "Densità")
+
+ggplot() +
+  # Primo dataset
+  geom_density(data = df, aes(x = NEO_OPE, fill = "full samples"), alpha = 0.4) +
+  # Secondo dataset
+  geom_density(data = dataframe_pca, aes(x = NEO_OPE, fill = "blood samples"), alpha = 0.4) +
+  scale_fill_manual(name = "Legenda",
+                    values = c("full samples" = "blue", "blood samples" = "red")) +
+  theme_minimal() +
+  labs(title = "Confronto NEO-OPE", x = "Valore", y = "Densità")
+
+ggplot() +
+  # Primo dataset
+  geom_density(data = df, aes(x = NEO_AGR, fill = "full samples"), alpha = 0.4) +
+  # Secondo dataset
+  geom_density(data = dataframe_pca, aes(x = NEO_AGR, fill = "blood samples"), alpha = 0.4) +
+  scale_fill_manual(name = "Legenda",
+                    values = c("full samples" = "blue", "blood samples" = "red")) +
+  theme_minimal() +
+  labs(title = "Confronto NEO-AGR", x = "Valore", y = "Densità")
+
+ggplot() +
+  # Primo dataset
+  geom_density(data = df, aes(x = NEO_CON, fill = "full samples"), alpha = 0.4) +
+  # Secondo dataset
+  geom_density(data = dataframe_pca, aes(x = NEO_CON, fill = "blood samples"), alpha = 0.4) +
+  scale_fill_manual(name = "Legenda",
+                    values = c("full samples" = "blue", "blood samples" = "red")) +
+  theme_minimal() +
+  labs(title = "Confronto NEO-CON", x = "Valore", y = "Densità")
+
+
+ggplot() +
+  # Primo dataset
+  geom_density(data = df, aes(x = AUDIT, fill = "full samples"), alpha = 0.4) +
+  # Secondo dataset
+  geom_density(data = dataframe_pca, aes(x = AUDIT, fill = "blood samples"), alpha = 0.4) +
+  scale_fill_manual(name = "Legenda",
+                    values = c("full samples" = "blue", "blood samples" = "red")) +
+  theme_minimal() +
+  labs(title = "Confronto AUDIT", x = "Valore", y = "Densità")
+
+ggplot() +
+  # Primo dataset
+  geom_density(data = df, aes(x = CVLT_9, fill = "full samples"), alpha = 0.4) +
+  # Secondo dataset
+  geom_density(data = dataframe_pca, aes(x = AUDIT, fill = "blood samples"), alpha = 0.4) +
+  scale_fill_manual(name = "Legenda",
+                    values = c("full samples" = "blue", "blood samples" = "red")) +
+  theme_minimal() +
+  labs(title = "Confronto CVLT 9(long free recall delay)", x = "Valore", y = "Densità")
+
+ggplot() +
+  # Primo dataset
+  geom_density(data = df, aes(x = sex, fill = "full samples"), alpha = 0.4) +
+  # Secondo dataset
+  geom_density(data = dataframe_pca, aes(x = sex, fill = "blood samples"), alpha = 0.4) +
+  scale_fill_manual(name = "Legenda",
+                    values = c("full samples" = "blue", "blood samples" = "red")) +
+  theme_minimal() +
+  labs(title = "Confronto sex", x = "Valore", y = "Densità")
+
+ggplot() +
+  # Primo dataset
+  geom_density(data = df, aes(x = age, fill = "full samples"), alpha = 0.4) +
+  # Secondo dataset
+  geom_density(data = dataframe_pca, aes(x = age, fill = "blood samples"), alpha = 0.4) +
+  scale_fill_manual(name = "Legenda",
+                    values = c("full samples" = "blue", "blood samples" = "red")) +
+  theme_minimal() +
+  labs(title = "Confronto age", x = "Valore", y = "Densità")
+
+ggplot() +
+  # Primo dataset
+  geom_density(data = df, aes(x = dementia_history_parents, fill = "full samples"), alpha = 0.4) +
+  # Secondo dataset
+  geom_density(data = dataframe_pca, aes(x = dementia_history_parents, fill = "blood samples"), alpha = 0.4) +
+  scale_fill_manual(name = "Legenda",
+                    values = c("full samples" = "blue", "blood samples" = "red")) +
+  theme_minimal() +
+  labs(title = "Confronto storia demenza familiare", x = "Valore", y = "Densità")
+
+ggplot() +
+  # Primo dataset
+  geom_density(data = df, aes(x = `PICALM_rs3851179_G/A`, fill = "full samples"), alpha = 0.4) +
+  # Secondo dataset
+  geom_density(data = dataframe_pca, aes(x = `PICALM_rs3851179_G/A`, fill = "blood samples"), alpha = 0.4) +
+  scale_fill_manual(name = "Legenda",
+                    values = c("full samples" = "blue", "blood samples" = "red")) +
+  theme_minimal() +
+  labs(title = "Confronto gene PICALM", x = "Valore", y = "Densità")
+
+ggplot() +
+  # Primo dataset
+  geom_density(data = df, aes(x = coffee_status, fill = "full samples"), alpha = 0.4) +
+  # Secondo dataset
+  geom_density(data = dataframe_pca, aes(x = coffee_status, fill = "blood samples"), alpha = 0.4) +
+  scale_fill_manual(name = "Legenda",
+                    values = c("full samples" = "blue", "blood samples" = "red")) +
+  theme_minimal() +
+  labs(title = "Confronto coffee status", x = "Valore", y = "Densità")
+
+
+
+df <- select(df, -"NEO_NEU", -"NEO_EXT")
+
+
+id_col <- "participant_id"
+
+colonne_da_aggiungere <- select(dataframe_pca, "Dim_1":"Dim_7") %>% names() %>% setdiff(names(df))
+df_sangue_clean <- dataframe_pca %>%
+  select(all_of(id_col), all_of(colonne_da_aggiungere))
+
+dataframe_alz <- inner_join(df, df_sangue_clean, by=id_col)
+
+
+df_clust <- dataframe_alz
+
+###########BEGIN#####CLUSTER#################BEGIN#####CLUSTER###################BEGIN#####CLUSTER#########################
 km_pp_func <- function(x, k) {
   km <- KMeans_rcpp(x, clusters = k, initializer = 'kmeans++', num_init = 10)
   return(list(cluster = km$clusters, tot.withinss = sum(km$WCSS_sum)))
@@ -483,36 +744,12 @@ fviz_nbclust(df_scaled, FUNcluster = km_pp_func, method = "silhouette")
 
 # 2. Visualizza con fviz_cluster
 # Dobbiamo passare i dati e le assegnazioni dei cluster
-cluster7 <- fviz_cluster(list(data = df_scaled, cluster = km_rcpp$clusters),
-             ellipse.type = "convex",
-             palette = "jco",
-             geom = c("point"),
-             ggtheme = theme_minimal())
-
-km_rcpp <- KMeans_rcpp(df_scaled, clusters = 7, initializer = 'kmeans++')
-
-fviz_nbclust(df_scaled, FUNcluster = km_pp_func, method = "silhouette")
-
-# 2. Visualizza con fviz_cluster
-# Dobbiamo passare i dati e le assegnazioni dei cluster
-cluster7 <- fviz_cluster(list(data = df_scaled, cluster = km_rcpp$clusters),
+fviz_cluster(list(data = df_scaled, cluster = km_rcpp$clusters),
                          ellipse.type = "convex",
                          palette = "jco",
                          geom = c("point"),
                          ggtheme = theme_minimal())
 
-df_cluster <- df
-df_cluster$cluster <- as.factor(km_rcpp$cluster)
 
-library(pheatmap)
-
-# Ordina il dataframe in base al cluster
-df_ordinato <- df_cluster[order(df_cluster$cluster), ]
-
-# Crea la heatmap (escludendo la colonna cluster dai valori numerici)
-pheatmap(df_ordinato[, -which(names(df_ordinato) == "cluster")],
-         cluster_rows = FALSE, # Manteniamo l'ordine dei nostri cluster
-         cluster_cols = TRUE,
-         scale = "column",     # Normalizza i dati per confrontarli
-         annotation_row = data.frame(Cluster = df_ordinato$cluster))
+###########END#####CLUSTER#################END#####CLUSTER###################END#####CLUSTER#########################
 
