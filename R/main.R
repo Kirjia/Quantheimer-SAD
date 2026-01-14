@@ -12,6 +12,7 @@ library(factoextra)
 library(heatmaply)
 library(ClusterR)
 
+
 dt <- read_tsv(file = file.path(getwd(), "dataset", "participants.tsv"), na = c("", "NA", "n/a", "N/A"))
 
 df<-data.frame(dt)
@@ -404,8 +405,8 @@ CVLT_tabella_varianza <- data.frame(
   Varianza_Cumulata = round(CVLT_eig_val$cumulative.variance.percent, 2)
 )
 # Otteniamo le dimensioni scelte dallo Scree Plot
-nuove_dimensioni <- as.data.frame(CVLT_pca$x[, 1:4])
-colnames(nuove_dimensioni) <- paste0("N-CVLT_", 1:4)
+nuove_dimensioni <- as.data.frame(CVLT_pca$x[, 1:2])
+colnames(nuove_dimensioni) <- paste0("N_CVLT_", 1:2)
 
 # Aggiungiamo le nuovi dimensioni ottenute
 df <- cbind(df, nuove_dimensioni)
@@ -488,9 +489,11 @@ analysis_name <- df %>% select(leukocytes:HSV_r) %>% colnames()
 dataframe_pca <- df %>% select(-all_of(analysis_name))
 dataframe_pca <- dataframe_pca[rownames(pca_res$x), ]
 
+fviz_contrib(pca_res, choice = "var", axes = 1, top = 10)
+
 # Otteniamo le 7 dimensioni scelte dallo Scree Plot
-nuove_dimensioni <- as.data.frame(pca_res$x[, 1:7])
-colnames(nuove_dimensioni) <- paste0("Dim_", 1:7)
+nuove_dimensioni <- as.data.frame(pca_res$x[, 1:5])
+colnames(nuove_dimensioni) <- paste0("Dim_", 1:5)
 
 # Aggiungiamo le nuovi dimensioni ottenute
 dataframe_pca <- cbind(dataframe_pca, nuove_dimensioni)
@@ -505,7 +508,7 @@ dataframe_pca %>% ggplot( aes(x=Dim_1)) +
 
 
 ############################################## PCA--------------Blood Test----------PCA #############################################
-df <- select(df, -c('APOE_haplotype', 'PICALM_rs3851179', "second_phase", "session_order", "allergies", "hypertension", "education", "other_diseases", "thyroid_diseases", "smoking_status", "drugs"))
+df <- select(df, -c('APOE_haplotype', 'PICALM_rs3851179', "second_phase", "session_order", "allergies", "hypertension", "education", "other_diseases", "thyroid_diseases", "smoking_status", "drugs","ibuprofen_intake"))
 df<- select(df, -'leukocytes':-'HSV_r')
 dataframe_pca <- select(dataframe_pca, -c('APOE_haplotype', 'PICALM_rs3851179', "second_phase", "session_order", "allergies", "hypertension", "education"))
 
@@ -694,27 +697,47 @@ ggplot() +
 
 
 
-df <- select(df, -"NEO_NEU", -"NEO_EXT")
+df <- select(df, -"NEO_NEU", -"NEO_EXT", -"coffee_status", -"PICALM_rs3851179_G/G")
 
 
 id_col <- "participant_id"
 
-colonne_da_aggiungere <- select(dataframe_pca, "Dim_1":"Dim_7") %>% names() %>% setdiff(names(df))
+colonne_da_aggiungere <- select(dataframe_pca, "Dim_1":"Dim_5") %>% names() %>% setdiff(names(df))
 df_sangue_clean <- dataframe_pca %>%
   select(all_of(id_col), all_of(colonne_da_aggiungere))
 
 dataframe_alz <- inner_join(df, df_sangue_clean, by=id_col)
 
 
-df_clust <- dataframe_alz
+df_clust <- select(dataframe_alz, -c("participant_id", "sex", "APOE_risk_score", "dementia_history_parents", "PICALM_rs3851179_G/A"))
+df_scaled <- scale(df_clust)
+
+p <- cor.test.p(df_scaled)
+
+heatmaply_cor(
+  cor(df_scaled, use = "pairwise.complete.obs"),            # Questo dice a R di scriverli
+  # Opzionale: Estetica del testo
+  node_type = "scatter",
+  hclust_method= "ward.D2",
+  point_size_mat = -log10(p),
+  point_size_name = "-log10(p-value)",
+  dendrogram = "none",
+  label_names = c("x", "y", "Correlation")
+)
+
+remove(df_long)
+remove(df_sangue_clean)
+remove(df_clean)
+remove(nuove_dimensioni)
+remove(dataframe_pca)
 
 ###########BEGIN#####CLUSTER#################BEGIN#####CLUSTER###################BEGIN#####CLUSTER#########################
+set.seed(123)
 km_pp_func <- function(x, k) {
-  km <- KMeans_rcpp(x, clusters = k, initializer = 'kmeans++', num_init = 10)
+  km <- KMeans_rcpp(x, clusters = k, initializer = 'kmeans++', num_init = 25)
   return(list(cluster = km$clusters, tot.withinss = sum(km$WCSS_sum)))
 }
 
-df_scaled <- df_clust%>% select(where(is.numeric)) %>%scale()
 
 fviz_nbclust(df_scaled,
              FUNcluster = km_pp_func,
@@ -726,29 +749,125 @@ fviz_nbclust(df_scaled,
 
 #usando K= 3
 
-km_rcpp <- KMeans_rcpp(df_scaled, clusters = 2, initializer = 'kmeans++')
+km_rcpp_2 <- KMeans_rcpp(df_scaled, clusters = 2, initializer = 'kmeans++', num_init = 25)
 
 fviz_nbclust(df_scaled, FUNcluster = km_pp_func, method = "silhouette")
 
 # 2. Visualizza con fviz_cluster
 # Dobbiamo passare i dati e le assegnazioni dei cluster
-fviz_cluster(list(data = df_scaled, cluster = km_rcpp$clusters),
+fviz_cluster(list(data = df_scaled, cluster = km_rcpp_2$clusters),
              ellipse.type = "convex",
              palette = "jco",
              geom = c("point"),
              ggtheme = theme_minimal())
 
-km_rcpp <- KMeans_rcpp(df_scaled, clusters = 3, initializer = 'kmeans++')
+km_rcpp_3 <- KMeans_rcpp(df_scaled, clusters = 3, initializer = 'kmeans++')
 
 fviz_nbclust(df_scaled, FUNcluster = km_pp_func, method = "silhouette")
 
 # 2. Visualizza con fviz_cluster
 # Dobbiamo passare i dati e le assegnazioni dei cluster
-fviz_cluster(list(data = df_scaled, cluster = km_rcpp$clusters),
+fviz_cluster(list(data = df_scaled, cluster = km_rcpp_3$clusters),
                          ellipse.type = "convex",
                          palette = "jco",
                          geom = c("point"),
                          ggtheme = theme_minimal())
+
+df_clust <- select(dataframe_alz, c("sex", "APOE_risk_score", "dementia_history_parents", "PICALM_rs3851179_G/A")) %>% cbind(df_clust)
+df_clust$Cluster <- as.factor(km_rcpp_3$clusters)
+
+df_summary <- df_clust %>%
+  group_by(Cluster) %>%
+  summarise(
+    N_Pazienti = n(),
+    CVLT_1 = mean(N_CVLT_1),
+    Hematic_Constitution = mean(Dim_1),
+    Depressione_Media = mean(BDI),
+    Coping_Evitante = mean(Cope_Avoidant),
+    Raven_RPM = mean(RPM),
+    Eta = mean(age),
+    # Controlliamo la genetica DOPO (variabili categoriche)
+    apoe_risk = mean(APOE_risk_score == 4) * 100
+  )
+
+print(df_summary)
+
+df_plot_long <- df_clust %>%
+
+  select(
+    Cluster,
+    "Memoria (CVLT Dim1)" = N_CVLT_1,
+    "Ossigenazione & Immunità (Blood Dim1)" = Dim_1, # Il nome che abbiamo trovato!
+    "Metabolismo (Blood Dim2)" = Dim_2,              # Se usi anche la Dim2
+    "Depressione (BDI)" = BDI,
+    "Riserva Cognitiva (RPM)" = RPM,
+    "Coping Evitante" = Cope_Avoidant,
+
+  ) %>%
+
+  pivot_longer(
+    cols = -Cluster,
+    names_to = "Variabile",
+    values_to = "Punteggio"
+  )
+
+
+ggplot(df_plot_long, aes(x = Cluster, y = Punteggio, fill = Cluster)) +
+  geom_boxplot(alpha = 0.7, outlier.shape = NA) + # outlier.shape=NA nasconde i punti estremi per pulizia
+
+
+  facet_wrap(~ Variabile, scales = "free_y", ncol = 2) +
+
+
+  theme_minimal() +
+  theme(
+    strip.text = element_text(face = "bold", size = 11), # Titoli dei riquadri in grassetto
+    legend.position = "bottom"
+  ) +
+  labs(
+    title = "Confronto dei Profili Clinici tra i Cluster",
+    subtitle = "Distribuzione delle variabili chiave per ogni gruppo identificato",
+    y = "Valore Standardizzato (Z-Score)", # Se hai usato dati scalati
+    x = "Gruppo (Cluster)"
+  ) +
+  scale_fill_brewer(palette = "Set2")
+
+
+df_plot_long_2 <-df_clust %>% select(
+  Cluster,
+  "APOE risk" = APOE_risk_score,
+  "cvlt 9" = CVLT_9,
+  "sesso" = sex,
+  "storia demenza familiare" = dementia_history_parents
+) %>%
+
+  pivot_longer(
+    cols = -Cluster,
+    names_to = "Variabile",
+    values_to = "Punteggio"
+  )
+
+
+ggplot(df_plot_long_2, aes(x = Cluster, y = Punteggio, fill = Cluster)) +
+  geom_boxplot(alpha = 0.7, outlier.shape = NA) + # outlier.shape=NA nasconde i punti estremi per pulizia
+
+
+  facet_wrap(~ Variabile, scales = "free_y", ncol = 2) +
+
+
+  theme_minimal() +
+  theme(
+    strip.text = element_text(face = "bold", size = 11), # Titoli dei riquadri in grassetto
+    legend.position = "bottom"
+  ) +
+  labs(
+    title = "Confronto dei Profili Clinici tra i Cluster",
+    subtitle = "Distribuzione delle variabili chiave per ogni gruppo identificato",
+    y = "Valore Standardizzato (Z-Score)", # Se hai usato dati scalati
+    x = "Gruppo (Cluster)"
+  ) +
+  scale_fill_brewer(palette = "Set2")
+
 
 
 ###########END#####CLUSTER#################END#####CLUSTER###################END#####CLUSTER#########################
