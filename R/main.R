@@ -869,6 +869,106 @@ ggplot(df_plot_long_2, aes(x = Cluster, y = Punteggio, fill = Cluster)) +
   scale_fill_brewer(palette = "Set2")
 
 
-
 ###########END#####CLUSTER#################END#####CLUSTER###################END#####CLUSTER#########################
+
+
+# ANALISI QUANTILI
+
+colonne_numeriche <- df %>%
+  select(where(is.numeric)) %>%
+  names()
+
+for (col_name in colonne_numeriche) {
+
+  # A. Estraiamo i dati della colonna corrente
+  dati_colonna <- df[[col_name]]
+
+  # B. Calcoliamo i quantili chiave per questa specifica colonna
+  #    (10%, 25%, 50% mediana, 75%, 90%)
+  q_vals <- quantile(dati_colonna, probs = c(0.10, 0.25, 0.50, 0.75, 0.90), na.rm = TRUE)
+
+  # C. Creiamo il grafico dinamico
+  p <- ggplot(df, aes(x = .data[[col_name]])) +
+    # Disegna la densità (curva piena)
+    geom_density(fill = "#69b3a2", alpha = 0.6) +
+
+    # Aggiungi un Rug plot (trattini in basso) per vedere i singoli dati
+    geom_rug(alpha = 0.1) +
+
+    # LINEE VERTICALI DEI QUANTILI
+    # Rosso tratteggiato = Code estreme (10% e 90%)
+    geom_vline(xintercept = q_vals[1], color = "red", linetype = "dotted", size=1) +  # 10%
+    geom_vline(xintercept = q_vals[5], color = "red", linetype = "dotted", size=1) +  # 90%
+
+    # Blu tratteggiato = Box interquartile (25% e 75%)
+    geom_vline(xintercept = q_vals[2], color = "blue", linetype = "dashed") + # 25%
+    geom_vline(xintercept = q_vals[4], color = "blue", linetype = "dashed") + # 75%
+
+    # Nero solido = MEDIANA (50%)
+    geom_vline(xintercept = q_vals[3], color = "black", size = 1.2) +         # 50%
+
+    # Titoli e Etichette
+    labs(
+      title = paste("Analisi Quantili:", col_name),
+      subtitle = paste0("Mediana (Nero): ", round(q_vals[3], 2),
+                        " | 10%-90% (Rosso): ", round(q_vals[1], 2), "-", round(q_vals[5], 2)),
+      x = col_name,
+      y = "Densità"
+    ) +
+    theme_minimal()
+
+  print(p)
+
+}
+
+#fine quantili
+
+
+# BOXPLOT
+
+
+colonne_numeriche <- df %>%
+  select(where(is.numeric)) %>%
+  names()
+
+print(paste("Generazione di", length(colonne_numeriche), "boxplot..."))
+
+# 2. Ciclo FOR per generare i grafici
+for (col_name in colonne_numeriche) {
+
+  # A. Calcoliamo statistiche rapide per il sottotitolo
+  valori <- df[[col_name]]
+  n_outliers <- length(boxplot.stats(valori)$out) # Conta quanti outlier ci sono
+
+  # B. Creiamo il Boxplot
+  p <- ggplot(df, aes(y = .data[[col_name]])) +
+
+    # 1. Boxplot (La scatola)
+    # outlier.colour = "red" colora di rosso i punti anomali
+    # outlier.size = 3 li rende belli grossi e visibili
+    geom_boxplot(fill = "orange", alpha = 0.6,
+                 outlier.colour = "red", outlier.shape = 16, outlier.size = 3) +
+
+    # 2. (Opzionale) Jitter: mostra i punti veri in sottofondo
+    # Utile per vedere se la scatola è basata su tanti o pochi dati
+    geom_jitter(aes(x = 0), width = 0.2, alpha = 0.1, color = "black") +
+
+    # 3. Estetica
+    theme_minimal() +
+    theme(
+      axis.text.x = element_blank(), # Rimuove etichette inutili sull'asse X
+      axis.ticks.x = element_blank()
+    ) +
+    labs(
+      title = paste("Boxplot:", col_name),
+      subtitle = paste("Numero di Outlier rilevati:", n_outliers),
+      y = col_name,
+      x = ""
+    )
+
+  print(p)
+}
+
+#FINE BOXPLOT
+
 
