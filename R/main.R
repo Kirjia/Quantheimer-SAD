@@ -13,7 +13,7 @@ library(heatmaply)
 library(ClusterR)
 library(htmlwidgets)
 
-dt <- read_tsv(file = file.path(getwd(), "dataset", "participants.tsv"), na = c("", "NA", "n/a", "N/A"))
+dt <- read_tsv(file = file.path(getwd(), "../dataset", "participants.tsv"), na = c("", "NA", "n/a", "N/A"))
 
 df<-data.frame(dt)
 
@@ -1038,7 +1038,7 @@ ggplot(centroids_long, aes(x = Variabile, y = Valore_Z, fill = Cluster)) +
   theme_minimal()
 
 
-write.csv2(df_clust, "Quantum/quantum-alz.csv")
+write.csv2(df_clust, "../Quantum/quantum-alz.csv")
 ###########END#####CLUSTER#################END#####CLUSTER###################END#####CLUSTER#########################
 
 
