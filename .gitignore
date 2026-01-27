@@ -5,3 +5,22 @@
 .tsv
 *.tsv
 .csv
+
+
+# --- PYTHON IGNORES ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# --- JUPYTER NOTEBOOKS ---
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# --- PYCHARM SETTINGS ---
+.idea/
+
+# --- AMBIENTI VIRTUALI ---
+venv/
+.venv/
+env/
