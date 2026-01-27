@@ -73,7 +73,7 @@ df <- df %>%
 #imputazione MINI.cope
 colonne_MINI <- c("MINI.COPE_1", "MINI.COPE_2", "MINI.COPE_3", "MINI.COPE_4", "MINI.COPE_5", "MINI.COPE_6","MINI.COPE_7", "MINI.COPE_8", "MINI.COPE_9","MINI.COPE_10", "MINI.COPE_11", "MINI.COPE_12","MINI.COPE_13", "MINI.COPE_14")
 
-
+df$participant_id <- as.numeric(gsub("sub-", "", df$participant_id))
 
 df <- df %>%
   mutate(across(all_of(colonne_MINI),
@@ -178,6 +178,7 @@ ggplot(data = df, aes(x = "", y = BDI)) +
     x = "",
     y = "Score"
   )
+
 #density plot
 df %>% ggplot( aes(x=BDI)) +
   geom_density(fill="#696089", color="#000000", alpha=0.8) +
@@ -245,7 +246,7 @@ df_long <- pivot_longer(df,
                         names_to = "Variabile",
                         values_to = "Valore")
 
-# Grafico corretto (senza caratteri nascosti)
+
 ggplot(df_long, aes(x = Valore, fill = Variabile)) +
   geom_density(alpha = 0.6, color = NA) +
   facet_wrap(~ Variabile, ncol = 2) +
@@ -257,24 +258,22 @@ select(df, 'CVLT_1':'CVLT_13') %>%
   pivot_longer(cols= 'CVLT_1':'CVLT_13', names_to = "Variabile", values_to = "Valore") %>%
   ggplot(aes(x = Valore, fill = Variabile)) +
   geom_density(alpha = 0.6, color = NA, trim=TRUE) +
-  # LA MODIFICA È QUI SOTTO:
   facet_wrap(~ Variabile, ncol = 3, scales = "free") +
   theme_minimal() +
-  theme(legend.position = "none") + # Rimuovo la legenda se ridondante
+  theme(legend.position = "none") +
   labs(title = "Confronto Densità CVLT")
 
 select(df, 'CVLT_1':'CVLT_13') %>%
   pivot_longer(cols= 'CVLT_1':'CVLT_13', names_to = "Variabile", values_to = "Valore") %>%
   ggplot(aes(x = Valore, fill = Variabile)) +
-  # CAMBIO QUI: Uso l'istogramma invece della densità
+
   geom_histogram(bins = 15, color = "white", alpha = 0.8) +
   facet_wrap(~ Variabile, ncol = 3, scales = "free") +
   theme_minimal() +
   theme(legend.position = "none") +
   labs(title = "Distribuzione Punteggi CVLT (Istogramma)")
 
-# --- CORREZIONE BLOCCO RISK SCORE ---
-# Ho riscritto questo pezzo rimuovendo gli spazi invisibili che causavano l'errore
+
 df <- df %>%
   mutate(
     APOE_risk_score = case_match(APOE_haplotype,
@@ -335,7 +334,7 @@ cor.test.p <- function(x){
 p <- cor.test.p(df_clean)
 
 heatmap_iniziale <- heatmaply_cor(
-  cor(df_clean, use = "pairwise.complete.obs"),            # Questo dice a R di scriverli
+  cor(df_clean, use = "pairwise.complete.obs"),
   # Opzionale: Estetica del testo
   node_type = "scatter",
   hclust_method= "ward.D2",
@@ -395,14 +394,12 @@ colonne_numeriche <- df %>% select("age":"APOE_risk_score") %>%
 
 func_quantili <- function(df_input, col_name_input_input){
 
-  # A. Estraiamo i dati specifici usando il nome
+
   dati_vector <- df_input[[col_name_input_input]]
 
-  # B. Calcolo quantili
   q_vals <- quantile(dati_vector, probs = c(0.10, 0.25, 0.50, 0.75, 0.90), na.rm = TRUE)
 
-  # C. Creazione Plot
-  # Nota: usiamo .data[[col_name_input_input]] per dire a ggplot quale colonna usare
+
   p <- ggplot(df_input, aes(x = .data[[col_name_input_input]])) +
     geom_density(fill = "#69b3a2", alpha = 0.6) +
     geom_rug(alpha = 0.1) +
@@ -424,24 +421,22 @@ func_quantili <- function(df_input, col_name_input_input){
 
 func_boxplot <- function(df_input, col_name_input){
 
-  # A. Calcoliamo gli outlier (statistiche)
+  # A. Calcoliamo gli outlier
   valori <- df_input[[col_name_input]]
-
-  # boxplot.stats restituisce una lista, $out contiene i valori outlier
   n_outliers <- length(boxplot.stats(valori)$out)
 
   # B. Creiamo il Boxplot
-  # Nota: aes(x = "") serve a dire a ggplot di mettere tutto in un unico gruppo centrale
+
   p <- ggplot(df_input, aes(x = "", y = .data[[col_name_input]])) +
 
-    # 1. Boxplot (La scatola)
+    # 1. Boxplot
     geom_boxplot(fill = "orange", alpha = 0.6,
                  outlier.colour = "red", outlier.shape = 16, outlier.size = 3) +
 
-    # 2. Jitter (Punti reali in sottofondo)
+    # 2. Jitter
     geom_jitter(width = 0.2, alpha = 0.1, color = "black") +
 
-    # 3. Estetica
+
     theme_minimal() +
     theme(
       axis.title.x = element_blank(), # Toglie il titolo asse X
@@ -476,8 +471,7 @@ report_pdf_safe <- function(colonne_numeriche, nome_file, do_func) {
     message("Dispositivo grafico chiuso correttamente. Controllo schermo ripristinato.")
   }, add = TRUE)
 
-  # 2. Identifica le colonne numeriche
-  # (Gestiamo il caso in cui il dataframe non abbia nomi)
+
 
   if(length(colonne_numeriche) == 0) {
     stop("Errore: Nessuna colonna numerica trovata nel dataframe.")
@@ -485,7 +479,7 @@ report_pdf_safe <- function(colonne_numeriche, nome_file, do_func) {
 
   message(paste("Inizio generazione grafici per", length(colonne_numeriche), "colonne..."))
 
-  # 3. Il ciclo di plotting
+
   for (col in colonne_numeriche) {
 
     try({
@@ -493,7 +487,7 @@ report_pdf_safe <- function(colonne_numeriche, nome_file, do_func) {
       valori <- df[[col]]
       if (all(is.na(valori))) next
 
-      # CHIAMATA ALLA FUNZIONE: Passiamo DF e NOME COLONNA
+
       do_func(df, col)
 
     }, silent = FALSE)
@@ -614,7 +608,7 @@ dataframe_pca <- dataframe_pca[rownames(pca_res$x), ]
 
 fviz_contrib(pca_res, choice = "var", axes = 1, top = 10)
 
-# Otteniamo le 7 dimensioni scelte dallo Scree Plot
+# Otteniamo le 5 dimensioni scelte dallo Scree Plot
 nuove_dimensioni <- as.data.frame(pca_res$x[, 1:5])
 colnames(nuove_dimensioni) <- paste0("Dim_", 1:5)
 
@@ -838,8 +832,8 @@ df_scaled <- scale(df_clust)
 p <- cor.test.p(df_scaled)
 
 heatmap_finale <- heatmaply_cor(
-  cor(df_scaled, use = "pairwise.complete.obs"),            # Questo dice a R di scriverli
-  # Opzionale: Estetica del testo
+  cor(df_scaled, use = "pairwise.complete.obs"),
+
   node_type = "scatter",
   hclust_method= "ward.D2",
   point_size_mat = -log10(p),
@@ -869,7 +863,7 @@ km_pp_func <- function(x, k) {
 fviz_nbclust(df_scaled,
              FUNcluster = km_pp_func,
              method="wss") +
-  geom_vline(xintercept = 3, linetype = 2, color = "red") + # Opzionale: linea sul gomito
+  geom_vline(xintercept = 3, linetype = 2, color = "red") +
   labs(title = "Metodo Elbow con k-means++",
        subtitle = "Somma dei quadrati entro i cluster per ogni k")
 
@@ -903,6 +897,29 @@ fviz_cluster(list(data = df_scaled, cluster = km_rcpp_3$clusters),
 df_clust <- select(dataframe_alz, c("participant_id", "sex", "APOE_risk_score", "dementia_history_parents", "PICALM_rs3851179_G/A")) %>% cbind(df_clust)
 df_clust$Cluster <- as.factor(km_rcpp_3$clusters)
 
+wcss_2 <- km_rcpp_2$WCSS_per_cluster
+global_mean <- colMeans(df_scaled)
+tss <- sum(apply(df_scaled, 1, function(x) sum((x - global_mean)^2)))
+bcss_2 <- tss - wcss_2
+
+n <- nrow(df_scaled)
+k <- 2
+
+ch_index_2 <- (bcss_2 / (k - 1)) / (wcss_2 / (n - k))
+
+
+wcss_3 <- km_rcpp_3$WCSS_per_cluster
+bcss_3 <- tss - wcss_3
+k <- 3
+
+ch_index_3 <- (bcss_3 / (k - 1)) / (wcss_3 / (n - k))
+
+cat("--- Risultati Clustering ---\n")
+cat("WCSS (Within-Cluster SS):  2 Cluster ", wcss_2, " 3 Cluster", wcss_3, "\n")
+cat("BCSS (Between-Cluster SS): 2 Cluster ", bcss_2, " 3 cluster ", bcss_3, "\n")
+cat("TSS (Total SS):          ", tss, "\n")
+cat("Indice Calinski-Harabasz: 2 Cluster ", ch_index_2, " 3 CLuster ", ch_index_3, "\n")
+
 df_summary <- df_clust %>%
   group_by(Cluster) %>%
   summarise(
@@ -913,7 +930,7 @@ df_summary <- df_clust %>%
     Coping_Evitante = mean(Cope_Avoidant),
     Raven_RPM = mean(RPM),
     Eta = mean(age),
-    # Controlliamo la genetica DOPO (variabili categoriche)
+
     apoe_risk = mean(APOE_risk_score == 4) * 100
   )
 
@@ -924,8 +941,8 @@ df_plot_long <- df_clust %>%
   select(
     Cluster,
     "Memoria (CVLT Dim1)" = N_CVLT_1,
-    "Ossigenazione & Immunità (Blood Dim1)" = Dim_1, # Il nome che abbiamo trovato!
-    "Metabolismo (Blood Dim2)" = Dim_2,              # Se usi anche la Dim2
+    "Ossigenazione & Immunità (Blood Dim1)" = Dim_1,
+    "Metabolismo (Blood Dim2)" = Dim_2,
     "Depressione (BDI)" = BDI,
     "Riserva Cognitiva (RPM)" = RPM,
     "Coping Evitante" = Cope_Avoidant,
@@ -940,7 +957,7 @@ df_plot_long <- df_clust %>%
 
 
 ggplot(df_plot_long, aes(x = Cluster, y = Punteggio, fill = Cluster)) +
-  geom_boxplot(alpha = 0.7, outlier.shape = NA) + # outlier.shape=NA nasconde i punti estremi per pulizia
+  geom_boxplot(alpha = 0.7, outlier.shape = NA) +
 
 
   facet_wrap(~ Variabile, scales = "free_y", ncol = 2) +
@@ -948,13 +965,13 @@ ggplot(df_plot_long, aes(x = Cluster, y = Punteggio, fill = Cluster)) +
 
   theme_minimal() +
   theme(
-    strip.text = element_text(face = "bold", size = 11), # Titoli dei riquadri in grassetto
+    strip.text = element_text(face = "bold", size = 11),
     legend.position = "bottom"
   ) +
   labs(
     title = "Confronto dei Profili Clinici tra i Cluster",
     subtitle = "Distribuzione delle variabili chiave per ogni gruppo identificato",
-    y = "Valore Standardizzato (Z-Score)", # Se hai usato dati scalati
+    y = "Valore Standardizzato (Z-Score)",
     x = "Gruppo (Cluster)"
   ) +
   scale_fill_brewer(palette = "Set2")
@@ -976,7 +993,7 @@ df_plot_long_2 <-df_clust %>% select(
 
 
 ggplot(df_plot_long_2, aes(x = Cluster, y = Punteggio, fill = Cluster)) +
-  geom_boxplot(alpha = 0.7, outlier.shape = NA) + # outlier.shape=NA nasconde i punti estremi per pulizia
+  geom_boxplot(alpha = 0.7, outlier.shape = NA) +
 
 
   facet_wrap(~ Variabile, scales = "free_y", ncol = 2) +
@@ -995,9 +1012,33 @@ ggplot(df_plot_long_2, aes(x = Cluster, y = Punteggio, fill = Cluster)) +
   ) +
   scale_fill_brewer(palette = "Set2")
 
-table(df_clust$Cluster, df_clust$sex)         # Quanti Maschi/Femmine in ogni gruppo?
+table(df_clust$Cluster, df_clust$sex)
 table(df_clust$Cluster, df_clust$APOE_risk_score)
-chisq.test(df_clust$Cluster, df_clust$sex)
+
+
+
+
+centroids <- km_rcpp_3$centroids
+
+
+colnames(centroids) <- colnames(df_scaled)
+
+
+centroids_long <- as.data.frame(centroids) %>%
+  mutate(Cluster = paste("Cluster", 1:nrow(centroids))) %>%
+  pivot_longer(-Cluster, names_to = "Variabile", values_to = "Valore_Z")
+
+# 4. Visualizza: Le barre più alte
+ggplot(centroids_long, aes(x = Variabile, y = Valore_Z, fill = Cluster)) +
+  geom_col(position = "dodge") +
+  coord_flip() +
+  labs(title = "Impatto delle variabili per Cluster (Z-Score)",
+       y = "Distanza dalla media globale (0)",
+       x = "Variabile") +
+  theme_minimal()
+
+
+write.csv2(df_clust, "Quantum/quantum-alz.csv")
 ###########END#####CLUSTER#################END#####CLUSTER###################END#####CLUSTER#########################
 
 
