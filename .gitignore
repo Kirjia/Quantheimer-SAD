@@ -6,6 +6,7 @@
 *.tsv
 .csv
 
+Quantum/*.csv
 
 # --- PYTHON IGNORES ---
 __pycache__/
