@@ -3,9 +3,11 @@
 Quantheimer is a project that aims to find new evidence on the alzheimer desiease, using standard data analysis and quantum approach.
 ## Targets
 This project has the goal to answer three reserach question.
-- **RQ 1:**
-- **RQ 2:**
-- **RQ 3:**
+- **RQ 1: Is there a significant correlation between a diagnosis of depression and a positive diagnosis of dementia?**
+- **RQ 2: Is it possible to identify alternative or unconventional patterns that are useful for early diagnosis?**
+- **RQ 3: What differences emerge from comparing the
+results obtained using traditional clustering techniques
+and those derived from quantum clustering algorithms?**
 ## Resources
 All the resources needed to replicate the project are on this repository.
 ## Dataset
