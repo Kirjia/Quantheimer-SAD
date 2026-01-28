@@ -13,7 +13,7 @@ library(heatmaply)
 library(ClusterR)
 library(htmlwidgets)
 
-dt <- read_tsv(file = file.path(getwd(), "../dataset", "participants.tsv"), na = c("", "NA", "n/a", "N/A"))
+dt <- read_tsv(file = file.path(getwd(), "dataset", "participants.tsv"), na = c("", "NA", "n/a", "N/A"))
 
 df<-data.frame(dt)
 
@@ -695,7 +695,7 @@ ggplot() +
   # Primo dataset
   geom_density(data = df, aes(x = NEO_NEU, fill = "full samples"), alpha = 0.4) +
   # Secondo dataset
-  geom_density(data = dataframe_pca, aes(x = BDI, fill = "blood samples"), alpha = 0.4) +
+  geom_density(data = dataframe_pca, aes(x = NEO_NEU, fill = "blood samples"), alpha = 0.4) +
   scale_fill_manual(name = "Legenda",
                     values = c("full samples" = "blue", "blood samples" = "red")) +
   theme_minimal() +
@@ -705,7 +705,7 @@ ggplot() +
   # Primo dataset
   geom_density(data = df, aes(x = NEO_EXT, fill = "full samples"), alpha = 0.4) +
   # Secondo dataset
-  geom_density(data = dataframe_pca, aes(x = BDI, fill = "blood samples"), alpha = 0.4) +
+  geom_density(data = dataframe_pca, aes(x = NEO_EXT, fill = "blood samples"), alpha = 0.4) +
   scale_fill_manual(name = "Legenda",
                     values = c("full samples" = "blue", "blood samples" = "red")) +
   theme_minimal() +
@@ -756,7 +756,7 @@ ggplot() +
   # Primo dataset
   geom_density(data = df, aes(x = CVLT_9, fill = "full samples"), alpha = 0.4) +
   # Secondo dataset
-  geom_density(data = dataframe_pca, aes(x = AUDIT, fill = "blood samples"), alpha = 0.4) +
+  geom_density(data = dataframe_pca, aes(x = CVLT_9, fill = "blood samples"), alpha = 0.4) +
   scale_fill_manual(name = "Legenda",
                     values = c("full samples" = "blue", "blood samples" = "red")) +
   theme_minimal() +
@@ -1038,7 +1038,7 @@ ggplot(centroids_long, aes(x = Variabile, y = Valore_Z, fill = Cluster)) +
   theme_minimal()
 
 
-write.csv2(df_clust, "../Quantum/quantum-alz.csv")
+write.csv2(df_clust, "Quantum/quantum-alz.csv")
 ###########END#####CLUSTER#################END#####CLUSTER###################END#####CLUSTER#########################
 
 
